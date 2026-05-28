@@ -17,6 +17,14 @@ SCALE_MAP = {
 }
 
 
+# ─── Decisions ────────────────────────────────────────────────────────────────
+
+@router.get("", response_model=list[DecisionResponse])
+def list_decisions(db: Session = Depends(get_db)):
+    """List all decisions for the dashboard."""
+    return db.query(Decision).order_by(Decision.created_at.desc()).all()
+
+
 @router.post("", response_model=DecisionResponse)
 def create_decision(payload: DecisionCreate, db: Session = Depends(get_db)):
     decision = Decision(
@@ -37,6 +45,18 @@ def get_decision(decision_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Decision not found")
     return decision
 
+
+@router.delete("/{decision_id}")
+def delete_decision(decision_id: str, db: Session = Depends(get_db)):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    db.delete(decision)
+    db.commit()
+    return {"status": "deleted"}
+
+
+# ─── Criteria ─────────────────────────────────────────────────────────────────
 
 @router.post("/{decision_id}/criteria")
 def save_criteria(decision_id: str, payload: dict, db: Session = Depends(get_db)):
@@ -66,6 +86,8 @@ def save_criteria(decision_id: str, payload: dict, db: Session = Depends(get_db)
     db.commit()
     return criteria
 
+
+# ─── Comparisons & Weights ────────────────────────────────────────────────────
 
 @router.post("/{decision_id}/comparisons")
 def save_comparisons(decision_id: str, payload: dict, db: Session = Depends(get_db)):
@@ -99,12 +121,17 @@ def calculate_weights(decision_id: str, db: Session = Depends(get_db)):
     ).all()
 
     n = len(criteria)
+    if n == 0:
+        raise HTTPException(status_code=400, detail="No criteria found")
+
     idx = {c.id: i for i, c in enumerate(criteria)}
     matrix = [[1.0] * n for _ in range(n)]
 
     for comp in comparisons:
-        i = idx[comp.criterion_a]
-        j = idx[comp.criterion_b]
+        i = idx.get(comp.criterion_a)
+        j = idx.get(comp.criterion_b)
+        if i is None or j is None:
+            continue
         if comp.winner == comp.criterion_a:
             matrix[i][j] = comp.value
             matrix[j][i] = 1.0 / comp.value
@@ -123,6 +150,8 @@ def calculate_weights(decision_id: str, db: Session = Depends(get_db)):
     db.commit()
     return [{"id": c.id, "name": c.name, "weight": c.weight} for c in criteria]
 
+
+# ─── Options & Ratings ────────────────────────────────────────────────────────
 
 @router.post("/{decision_id}/options")
 def save_options(decision_id: str, payload: dict, db: Session = Depends(get_db)):
@@ -162,6 +191,8 @@ def save_ratings(decision_id: str, payload: dict, db: Session = Depends(get_db))
     return {"status": "saved"}
 
 
+# ─── Results ──────────────────────────────────────────────────────────────────
+
 @router.get("/{decision_id}/results")
 def get_results(decision_id: str, db: Session = Depends(get_db)):
     criteria = db.query(Criterion).filter(
@@ -171,6 +202,9 @@ def get_results(decision_id: str, db: Session = Depends(get_db)):
     options = db.query(Option).filter(
         Option.decision_id == decision_id
     ).all()
+
+    if not criteria or not options:
+        raise HTTPException(status_code=404, detail="No criteria or options found")
 
     weights = {c.id: (c.weight or 0) for c in criteria}
     results = []
@@ -189,6 +223,12 @@ def get_results(decision_id: str, db: Session = Depends(get_db)):
     results.sort(key=lambda x: x["score"], reverse=True)
     if results:
         results[0]["is_winner"] = True
+
+    # Update decision status to complete
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if decision:
+        decision.status = "complete"
+        db.commit()
 
     return {
         "winner": results[0] if results else None,

@@ -19,6 +19,47 @@
 
 # production
 /build
+# ─── Python ───────────────────────────────────────
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.Python
+backend/*.egg-info/
+backend/dist/
+backend/build/
+
+# ─── Database ─────────────────────────────────────
+backend/decision.db
+backend/*.db
+backend/*.sqlite
+
+# ─── Environment ──────────────────────────────────
+backend/.env
+frontend/.env.local
+.env
+.env.local
+.env.production
+
+# ─── Node ─────────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# ─── OS ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Editor ───────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
 
 # misc
 .DS_Store
