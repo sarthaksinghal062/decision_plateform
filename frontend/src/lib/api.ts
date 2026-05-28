@@ -14,12 +14,21 @@ export const getDecision = (id: string) =>
 export const saveCriteria = (decisionId: string, names: string[]) =>
   api.post(`/api/decisions/${decisionId}/criteria`, { names })
 
-export const saveComparisons = (decisionId: string, comparisons: object[]) =>
-  api.post(`/api/decisions/${decisionId}/comparisons`, { comparisons })
+export const saveComparisons = (
+  decisionId: string,
+  comparisons: {
+    criterion_a: string
+    criterion_b: string
+    winner: string
+    preference: string
+  }[]
+) =>
+  api.post(`/api/decisions/${decisionId}/comparisons`, {
+    comparisons,
+  })
 
 export const calculateWeights = (decisionId: string) =>
   api.post(`/api/decisions/${decisionId}/calculate-weights`)
-
 export const saveOptions = (decisionId: string, names: string[]) =>
   api.post(`/api/decisions/${decisionId}/options`, { names })
 

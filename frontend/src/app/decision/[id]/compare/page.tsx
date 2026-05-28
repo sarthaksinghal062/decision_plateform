@@ -1,164 +1,332 @@
-"use client"
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { saveComparisons, calculateWeights } from "@/lib/api"
-import { useDecisionStore } from "@/store/decisionStore"
+// frontend/src/app/decision/[id]/compare/page.tsx
+'use client'
 
-const SCALE = [
-  { label: "Equal",      value: "equal",      score: 1 },
-  { label: "Slightly",   value: "slightly",   score: 2 },
-  { label: "Moderately", value: "moderately", score: 3 },
-  { label: "Strongly",   value: "strongly",   score: 5 },
-  { label: "Extremely",  value: "extremely",  score: 7 },
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { saveComparisons, calculateWeights } from '@/lib/api'
+import { useDecisionStore } from '@/store/decisionStore'
+
+// AHP preference levels
+const PREFERENCES = [
+  { label: 'Extremely', value: 'extremely', scale: 7 },
+  { label: 'Strongly',  value: 'strongly',  scale: 5 },
+  { label: 'Moderately', value: 'moderately', scale: 3 },
+  { label: 'Slightly',  value: 'slightly',  scale: 2 },
+  { label: 'Equal',     value: 'equal',     scale: 1 },
+  { label: 'Slightly',  value: 'slightly',  scale: 2 },
+  { label: 'Moderately', value: 'moderately', scale: 3 },
+  { label: 'Strongly',  value: 'strongly',  scale: 5 },
+  { label: 'Extremely', value: 'extremely', scale: 7 },
 ]
 
-function generatePairs(criteria: {id: string, name: string}[]) {
-  const pairs = []
-  for (let i = 0; i < criteria.length; i++)
-    for (let j = i + 1; j < criteria.length; j++)
+interface Criterion {
+  id: string
+  name: string
+}
+
+interface PairComparison {
+  criterion_a: string
+  criterion_b: string
+  winner: string
+  preference: string
+}
+
+// Generate all unique pairs from criteria list
+function generatePairs(criteria: Criterion[]) {
+  const pairs: [Criterion, Criterion][] = []
+  for (let i = 0; i < criteria.length; i++) {
+    for (let j = i + 1; j < criteria.length; j++) {
       pairs.push([criteria[i], criteria[j]])
+    }
+  }
   return pairs
 }
 
 export default function ComparePage() {
+  const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const params = useParams()
-  const decisionId = params.id as string
-  const { criteria, nextStep } = useDecisionStore()
 
-  const pairs = generatePairs(criteria)
-  const [current, setCurrent] = useState(0)
-  const [answers, setAnswers] = useState<any[]>([])
-  const [selected, setSelected] = useState<{winner: string, preference: string} | null>(null)
-  const [loading, setLoading] = useState(false)
+  // Pull criteria from Zustand store (saved in Step 1)
+  const { criteria, decisionTitle, setComparisons: storeSetComparisons } = useDecisionStore()
 
-  const pair = pairs[current]
-  const progress = Math.round((current / pairs.length) * 100)
+  const [pairs, setPairs] = useState<[Criterion, Criterion][]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [answers, setAnswers] = useState<PairComparison[]>([])
 
-  const choose = (winnerId: string, preference: string) => {
-    setSelected({ winner: winnerId, preference })
+  // Selected state for current pair: { winner: id, preference: string } | null
+  const [selected, setSelected] = useState<{
+    winner: string
+    preference: string
+    side: 'left' | 'right' | 'equal'
+  } | null>(null)
+
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (criteria && criteria.length >= 2) {
+      setPairs(generatePairs(criteria))
+    }
+  }, [criteria])
+
+  if (!criteria || criteria.length < 2) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">No criteria found. Please go back and add criteria first.</p>
+          <button
+            onClick={() => router.push(`/decision/${id}/criteria`)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+          >
+            ← Back to Criteria
+          </button>
+        </div>
+      </div>
+    )
   }
 
-  const handleNext = async () => {
-    if (!selected) return
-    const newAnswer = {
-      criterion_a: pair[0].id,
-      criterion_b: pair[1].id,
-      winner: selected.winner,
+  const totalPairs = pairs.length
+  const currentPair = pairs[currentIndex]
+  const progress = totalPairs > 0 ? Math.round((currentIndex / totalPairs) * 100) : 0
+  const isLast = currentIndex === totalPairs - 1
+
+  const handleSelect = (side: 'left' | 'right' | 'equal', preference: string) => {
+    if (!currentPair) return
+    const [a, b] = currentPair
+    const winner = side === 'left' ? a.id : side === 'right' ? b.id : a.id
+    setSelected({ winner, preference, side })
+  }
+
+  const handleNext = () => {
+    if (!selected || !currentPair) return
+    const [a, b] = currentPair
+
+    const entry: PairComparison = {
+      criterion_a: a.id,
+      criterion_b: b.id,
+      winner: selected.side === 'equal' ? a.id : selected.winner,
       preference: selected.preference,
     }
-    const newAnswers = [...answers, newAnswer]
+
+    const newAnswers = [...answers, entry]
     setAnswers(newAnswers)
     setSelected(null)
 
-    if (current + 1 < pairs.length) {
-      setCurrent(current + 1)
+    if (!isLast) {
+      setCurrentIndex((i) => i + 1)
     } else {
-      // All comparisons done — save and calculate
-      setLoading(true)
-      try {
-        await saveComparisons(decisionId, newAnswers)
-        await calculateWeights(decisionId)
-        nextStep()
-        router.push(`/decision/${decisionId}/options`)
-      } catch {
-        alert("Failed to save comparisons. Check backend is running.")
-      } finally {
-        setLoading(false)
-      }
+      handleSubmit(newAnswers)
     }
   }
 
-  if (!criteria.length) {
+  const handleSubmit = async (finalAnswers: PairComparison[]) => {
+    setSaving(true)
+    setError('')
+    try {
+      await saveComparisons(id, finalAnswers)
+      const weights = await calculateWeights(id)
+      storeSetComparisons(finalAnswers, weights)
+      router.push(`/decision/${id}/options`)
+    } catch (e) {
+      console.error(e)
+      setError('Something went wrong. Please try again.')
+      setSaving(false)
+    }
+  }
+
+  if (saving) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">No criteria found. Please start over.</p>
-          <button onClick={() => router.push("/")} className="text-blue-600 underline">Go home</button>
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Calculating weights with AHP...</p>
+          <p className="text-gray-400 text-sm mt-1">This takes just a second</p>
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50">
-      <div className="w-full max-w-lg">
+    <main className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="max-w-xl mx-auto">
 
-        {/* Progress */}
+        {/* Header */}
         <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-400 mb-2">
-            <span>Step 2 of 3 — Comparing factors</span>
-            <span>{current + 1} of {pairs.length}</span>
+          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Step 2 of 4</p>
+          <h1 className="text-xl font-bold text-gray-900">Compare Factors</h1>
+          {decisionTitle && (
+            <p className="text-sm text-gray-500 mt-0.5">For: {decisionTitle}</p>
+          )}
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+            <span>Comparison {currentIndex + 1} of {totalPairs}</span>
+            <span>{progress}% done</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+              className="h-full bg-blue-500 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Question card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 mb-6 text-center">
-          <p className="text-sm text-gray-400 mb-6">Which factor matters more to you?</p>
+        {/* Pairwise Card */}
+        {currentPair && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            
+            {/* Question */}
+            <p className="text-center text-sm text-gray-500 mb-5">
+              Which factor matters <span className="font-semibold text-gray-700">more</span> to you?
+            </p>
 
-          {/* Two options */}
-          <div className="flex gap-4 mb-8">
-            <button
-              onClick={() => choose(pair[0].id, selected?.preference || "moderately")}
-              className={`flex-1 py-4 px-6 rounded-xl border-2 text-sm font-medium transition-all ${
-                selected?.winner === pair[0].id
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {pair[0].name}
-            </button>
+            {/* Two options side by side */}
+            <div className="flex items-center gap-3 mb-6">
+              {/* Left criterion */}
+              <button
+                onClick={() => {
+                  // Clicking a criterion selects it with "moderately" default
+                  if (selected?.side === 'left') return
+                  setSelected({
+                    winner: currentPair[0].id,
+                    preference: 'moderately',
+                    side: 'left',
+                  })
+                }}
+                className={`flex-1 py-4 px-3 rounded-xl border-2 text-center font-semibold text-sm transition-all ${
+                  selected?.side === 'left'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {currentPair[0].name}
+              </button>
 
-            <div className="flex items-center text-gray-300 font-light">vs</div>
+              {/* Equal button */}
+              <button
+                onClick={() => handleSelect('equal', 'equal')}
+                className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                  selected?.side === 'equal'
+                    ? 'border-gray-500 bg-gray-100 text-gray-700'
+                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                }`}
+              >
+                Equal
+              </button>
 
-            <button
-              onClick={() => choose(pair[1].id, selected?.preference || "moderately")}
-              className={`flex-1 py-4 px-6 rounded-xl border-2 text-sm font-medium transition-all ${
-                selected?.winner === pair[1].id
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {pair[1].name}
-            </button>
-          </div>
-
-          {/* Importance scale — only show after picking a winner */}
-          {selected && (
-            <div>
-              <p className="text-xs text-gray-400 mb-3">How much more important?</p>
-              <div className="flex gap-2 justify-center flex-wrap">
-                {SCALE.map((s) => (
-                  <button
-                    key={s.value}
-                    onClick={() => setSelected({ ...selected, preference: s.value })}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                      selected.preference === s.value
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-500 hover:border-gray-300"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+              {/* Right criterion */}
+              <button
+                onClick={() => {
+                  if (selected?.side === 'right') return
+                  setSelected({
+                    winner: currentPair[1].id,
+                    preference: 'moderately',
+                    side: 'right',
+                  })
+                }}
+                className={`flex-1 py-4 px-3 rounded-xl border-2 text-center font-semibold text-sm transition-all ${
+                  selected?.side === 'right'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {currentPair[1].name}
+              </button>
             </div>
-          )}
+
+            {/* Strength slider — only show when left or right selected (not equal) */}
+            {selected && selected.side !== 'equal' && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-400 text-center mb-3">
+                  How much more important is{' '}
+                  <span className="font-semibold text-gray-600">
+                    {selected.side === 'left' ? currentPair[0].name : currentPair[1].name}
+                  </span>?
+                </p>
+
+                {/* Preference buttons grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  {(['slightly', 'moderately', 'strongly', 'extremely'] as const).map((pref) => (
+                    <button
+                      key={pref}
+                      onClick={() =>
+                        setSelected((s) => s ? { ...s, preference: pref } : s)
+                      }
+                      className={`py-2 px-1 rounded-lg text-xs font-medium border transition-all capitalize ${
+                        selected?.preference === pref
+                          ? 'border-blue-500 bg-blue-500 text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                      }`}
+                    >
+                      {pref}
+                    </button>
+                  ))}
+                </div>
+
+                {/* AHP Scale hint */}
+                <p className="text-center text-xs text-gray-300 mt-2">
+                  slightly = 2× · moderately = 3× · strongly = 5× · extremely = 7×
+                </p>
+              </div>
+            )}
+
+            {/* Summary sentence */}
+            {selected && (
+              <div className="bg-gray-50 rounded-lg px-4 py-2.5 text-center text-sm text-gray-600 mb-5">
+                {selected.side === 'equal' ? (
+                  <>
+                    <span className="font-medium text-gray-800">{currentPair[0].name}</span>
+                    {' and '}
+                    <span className="font-medium text-gray-800">{currentPair[1].name}</span>
+                    {' are equally important'}
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium text-gray-800">
+                      {selected.side === 'left' ? currentPair[0].name : currentPair[1].name}
+                    </span>
+                    {' is '}
+                    <span className="font-medium text-blue-600 capitalize">{selected.preference}</span>
+                    {' more important than '}
+                    <span className="font-medium text-gray-800">
+                      {selected.side === 'left' ? currentPair[1].name : currentPair[0].name}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Next / Finish button */}
+            <button
+              onClick={handleNext}
+              disabled={!selected}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium
+                         hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed
+                         transition-colors text-sm"
+            >
+              {isLast ? 'Calculate Weights →' : 'Next Comparison →'}
+            </button>
+
+            {error && (
+              <p className="text-red-500 text-xs text-center mt-3">{error}</p>
+            )}
+          </div>
+        )}
+
+        {/* Criteria reminder */}
+        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          {criteria.map((c: Criterion) => (
+            <span
+              key={c.id}
+              className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-full text-gray-500"
+            >
+              {c.name}
+            </span>
+          ))}
         </div>
 
-        <button
-          onClick={handleNext}
-          disabled={!selected || loading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
-        >
-          {loading ? "Calculating weights..." : current + 1 < pairs.length ? "Next comparison →" : "Calculate weights →"}
-        </button>
       </div>
     </main>
   )
