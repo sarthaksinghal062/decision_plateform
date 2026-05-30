@@ -1,20 +1,104 @@
+// frontend/src/lib/api.ts
+
 import axios from "axios"
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-  headers: { "Content-Type": "application/json" },
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8000",
+
+  headers: {
+    "Content-Type": "application/json",
+  },
 })
 
-export const createDecision = (title: string) =>
-  api.post("/api/decisions", { title })
+/* =========================================
+   TYPES
+========================================= */
 
-export const getDecision = (id: string) =>
-  api.get(`/api/decisions/${id}`)
+export interface Decision {
+  id: string
+  title: string
+  status?: string
+  created_at?: string
 
-export const saveCriteria = (decisionId: string, names: string[]) =>
-  api.post(`/api/decisions/${decisionId}/criteria`, { names })
+  criteria_count?: number
+  options_count?: number
 
-export const saveComparisons = (
+  winner?: string | null
+  winner_score?: number | null
+}
+
+/* =========================================
+   DECISIONS
+========================================= */
+
+export const createDecision = async (
+  title: string
+) => {
+  const res = await api.post(
+    "/api/decisions",
+    { title }
+  )
+
+  return res.data
+}
+
+export const getDecision = async (
+  id: string
+) => {
+  const res = await api.get(
+    `/api/decisions/${id}`
+  )
+
+  return res.data
+}
+
+/* =========================================
+   DASHBOARD
+========================================= */
+
+export const getAllDecisions = async (): Promise<
+  Decision[]
+> => {
+  const res = await api.get(
+    "/api/decisions"
+  )
+
+  return res.data
+}
+
+export const deleteDecision = async (
+  decisionId: string
+): Promise<void> => {
+  await api.delete(
+    `/api/decisions/${decisionId}`
+  )
+}
+
+/* =========================================
+   CRITERIA
+========================================= */
+
+export const saveCriteria = async (
+  decisionId: string,
+  names: string[]
+) => {
+  const res = await api.post(
+    `/api/decisions/${decisionId}/criteria`,
+    {
+      names,
+    }
+  )
+
+  return res.data
+}
+
+/* =========================================
+   COMPARISONS
+========================================= */
+
+export const saveComparisons = async (
   decisionId: string,
   comparisons: {
     criterion_a: string
@@ -22,18 +106,113 @@ export const saveComparisons = (
     winner: string
     preference: string
   }[]
-) =>
-  api.post(`/api/decisions/${decisionId}/comparisons`, {
-    comparisons,
-  })
+) => {
+  const res = await api.post(
+    `/api/decisions/${decisionId}/comparisons`,
+    {
+      comparisons,
+    }
+  )
 
-export const calculateWeights = (decisionId: string) =>
-  api.post(`/api/decisions/${decisionId}/calculate-weights`)
-export const saveOptions = (decisionId: string, names: string[]) =>
-  api.post(`/api/decisions/${decisionId}/options`, { names })
+  return res.data
+}
 
-export const saveRatings = (decisionId: string, ratings: object[]) =>
-  api.post(`/api/decisions/${decisionId}/ratings`, { ratings })
+export const calculateWeights = async (
+  decisionId: string
+) => {
+  const res = await api.post(
+    `/api/decisions/${decisionId}/calculate-weights`
+  )
 
-export const getResults = (decisionId: string) =>
-  api.get(`/api/decisions/${decisionId}/results`)
+  return res.data
+}
+
+/* =========================================
+   OPTIONS
+========================================= */
+
+export const saveOptions = async (
+  decisionId: string,
+  names: string[]
+) => {
+  const res = await api.post(
+    `/api/decisions/${decisionId}/options`,
+    {
+      names,
+    }
+  )
+
+  return res.data
+}
+
+export const addOption = async (
+  decisionId: string,
+  name: string,
+  description?: string
+) => {
+  const res = await api.post(
+    "/options",
+    {
+      decision_id: decisionId,
+      name,
+      description: description ?? "",
+    }
+  )
+
+  return res.data
+}
+
+/* =========================================
+   SCORES
+========================================= */
+
+export const saveScores = async (
+  decisionId: string,
+  scores: {
+    option_id: string
+    criterion_id: string
+    score: number
+  }[]
+) => {
+  const res = await api.post(
+    "/scores",
+    {
+      decision_id: decisionId,
+      scores,
+    }
+  )
+
+  return res.data
+}
+
+/* =========================================
+   RATINGS
+========================================= */
+
+export const saveRatings = async (
+  decisionId: string,
+  ratings: object[]
+) => {
+  const res = await api.post(
+    `/api/decisions/${decisionId}/ratings`,
+    {
+      ratings,
+    }
+  )
+
+  return res.data
+}
+
+/* =========================================
+   RESULTS
+========================================= */
+
+export const getResults = async (
+  decisionId: string
+) => {
+  const res = await api.get(
+    `/api/decisions/${decisionId}/results`
+  )
+
+  return res.data
+}

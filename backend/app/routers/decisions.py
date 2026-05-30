@@ -18,12 +18,47 @@ SCALE_MAP = {
 
 
 # ─── Decisions ────────────────────────────────────────────────────────────────
+@router.get("")
+def get_all_decisions(db: Session = Depends(get_db)):
+    decisions = db.query(Decision).order_by(
+        Decision.created_at.desc()
+    ).all()
 
-@router.get("", response_model=list[DecisionResponse])
-def list_decisions(db: Session = Depends(get_db)):
-    """List all decisions for the dashboard."""
-    return db.query(Decision).order_by(Decision.created_at.desc()).all()
+    result = []
 
+    for d in decisions:
+        criteria_count = db.query(Criterion).filter(
+            Criterion.decision_id == d.id
+        ).count()
+
+        options = db.query(Option).filter(
+            Option.decision_id == d.id
+        ).all()
+
+        winner = None
+        winner_score = None
+
+        if d.status == "complete" and options:
+            best = max(
+                options,
+                key=lambda o: o.final_score or 0
+            )
+
+            winner = best.name
+            winner_score = best.final_score
+
+        result.append({
+            "id": d.id,
+            "title": d.title,
+            "status": d.status,
+            "created_at": str(d.created_at),
+            "criteria_count": criteria_count,
+            "options_count": len(options),
+            "winner": winner,
+            "winner_score": winner_score,
+        })
+
+    return result
 
 @router.post("", response_model=DecisionResponse)
 def create_decision(payload: DecisionCreate, db: Session = Depends(get_db)):
@@ -47,13 +82,26 @@ def get_decision(decision_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{decision_id}")
-def delete_decision(decision_id: str, db: Session = Depends(get_db)):
-    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+def delete_decision(
+    decision_id: str,
+    db: Session = Depends(get_db)
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
     if not decision:
-        raise HTTPException(status_code=404, detail="Decision not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
     db.delete(decision)
     db.commit()
-    return {"status": "deleted"}
+
+    return {
+        "message": "Deleted"
+    }
 
 
 # ─── Criteria ─────────────────────────────────────────────────────────────────

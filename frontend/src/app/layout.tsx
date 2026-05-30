@@ -1,13 +1,15 @@
-import type { Metadata } from "next"
-import { Geist } from "next/font/google"
-import "./globals.css"
-import Navbar from "@/components/layout/Navbar"
+// frontend/src/app/layout.tsx
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import Navbar from '@/components/layout/Navbar'
+import ThemeProvider from '@/components/layout/ThemeProvider'
 
-const geist = Geist({ subsets: ["latin"] })
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Decision Helper",
-  description: "Make better decisions using structured analysis",
+  title: 'Decision Helper — Make Better Choices',
+  description: 'Structured, math-backed decision making using AHP',
 }
 
 export default function RootLayout({
@@ -16,10 +18,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={geist.className}>
-        <Navbar />
-        <div className="pt-14">{children}</div>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-50 dark:bg-gray-950 transition-colors duration-200`}>
+        <ThemeProvider>
+          <Navbar />
+          <div className="pt-14">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   )

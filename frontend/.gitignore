@@ -1,8 +1,9 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =========================================
+# NODE / NEXT.JS
+# =========================================
 
-# dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,73 +11,100 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+.next/
+out/
+build/
+.turbo/
 
-# next.js
-/.next/
-/out/
+coverage/
 
-# production
-/build
-# ─── Python ───────────────────────────────────────
+# =========================================
+# PYTHON
+# =========================================
+
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
-backend/*.pyc
+
 backend/**/*.pyc
-backend/*.pyo
-backend/*.pyd
+backend/**/*.pyo
+backend/**/*.pyd
+
 backend/.Python
 backend/*.egg-info/
+
 backend/dist/
 backend/build/
 
-# ─── Database ─────────────────────────────────────
+backend/.pytest_cache/
+
+# =========================================
+# DATABASE
+# =========================================
+
 backend/decision.db
 backend/*.db
 backend/*.sqlite
 
-# ─── Environment ──────────────────────────────────
+# =========================================
+# ENV FILES
+# =========================================
+
 backend/.env
+
+frontend/.env
 frontend/.env.local
+
 .env
 .env.local
 .env.production
+.env*
 
-# ─── Node ─────────────────────────────────────────
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/.turbo/
+# =========================================
+# NEXT TYPESCRIPT
+# =========================================
 
-# ─── OS ───────────────────────────────────────────
-.DS_Store
-Thumbs.db
-desktop.ini
+*.tsbuildinfo
+next-env.d.ts
 
-# ─── Editor ───────────────────────────────────────
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
+# =========================================
+# LOGS
+# =========================================
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# =========================================
+# OS FILES
+# =========================================
 
-# vercel
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================
+# IDE / EDITOR
+# =========================================
+
+.vscode/
+.vscode/settings.json
+
+.idea/
+
+*.swp
+*.swo
+
+# =========================================
+# DEPLOYMENT
+# =========================================
+
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# =========================================
+# MISC
+# =========================================
+
+*.pem
