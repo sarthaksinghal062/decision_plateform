@@ -27,15 +27,12 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto h-full px-4 flex items-center justify-between">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center
-                          group-hover:bg-blue-700 transition-colors">
-            <span className="text-white text-xs font-bold">D</span>
-          </div>
-          <span className="font-bold text-gray-900 dark:text-white text-sm">
-            Decision Helper
-          </span>
-        </Link>
+       <Link href="/" className="flex items-center gap-2">
+  <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+    <span className="text-white text-xs font-bold">D</span>
+  </div>
+  <span className="font-semibold text-sm">Decision Helper</span>
+</Link>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-1">

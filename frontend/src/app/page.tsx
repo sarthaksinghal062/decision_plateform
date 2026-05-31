@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createDecision } from '@/lib/api'
 import { useDecisionStore } from '@/store/decisionStore'
+import { useSearchParams } from "next/navigation"
 
 const SUGGESTIONS = [
   'Best laptop under ₹80,000',
@@ -26,7 +27,7 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
-  const { decisionId, decisionTitle, step, reset, setDecision, setCriteria,
+  const { decisionId, Title, step, reset, setDecision, setCriteria,
           setComparisons, setOptions, setScores, setResults } = useDecisionStore()
 
   useEffect(() => { setMounted(true) }, [])
@@ -78,7 +79,7 @@ export default function HomePage() {
                 In Progress — Step {step} of 4
               </p>
               <p className="text-sm font-medium text-gray-800 truncate">
-                {decisionTitle}
+                {Title}
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
