@@ -5,12 +5,27 @@ import axios from "axios"
 const api = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 
   headers: {
     "Content-Type": "application/json",
   },
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const config = error.config
+    console.error("[API] Request failed:", {
+      method: config?.method?.toUpperCase(),
+      url: `${config?.baseURL ?? ""}${config?.url ?? ""}`,
+      status: error.response?.status,
+      detail: error.response?.data,
+      message: error.message,
+    })
+    return Promise.reject(error)
+  }
+)
 
 /* =========================================
    TYPES
@@ -84,12 +99,12 @@ export const saveCriteria = async (
   decisionId: string,
   names: string[]
 ) => {
-  const res = await api.post(
-    `/api/decisions/${decisionId}/criteria`,
-    {
-      names,
-    }
-  )
+  const url = `/api/decisions/${decisionId}/criteria`
+  const body = { names }
+  console.info("[API] saveCriteria request:", { decisionId, names, url })
+
+  const res = await api.post(url, body)
+  console.info("[API] saveCriteria response:", { status: res.status, data: res.data })
 
   return res.data
 }

@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.decision import Decision, Criterion, Comparison as ComparisonModel, Option, Rating
-from app.schemas.decision import DecisionCreate, DecisionResponse
+from app.schemas.decision import DecisionCreate, DecisionResponse, CriteriaCreate
 import uuid
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
@@ -107,15 +110,17 @@ def delete_decision(
 # ─── Criteria ─────────────────────────────────────────────────────────────────
 
 @router.post("/{decision_id}/criteria")
-def save_criteria(decision_id: str, payload: dict, db: Session = Depends(get_db)):
+def save_criteria(decision_id: str, payload: CriteriaCreate, db: Session = Depends(get_db)):
+    logger.info("save_criteria decision_id=%s body=%s", decision_id, payload.model_dump())
     decision = db.query(Decision).filter(Decision.id == decision_id).first()
     if not decision:
+        logger.warning("save_criteria decision not found: %s", decision_id)
         raise HTTPException(status_code=404, detail="Decision not found")
 
     db.query(Criterion).filter(Criterion.decision_id == decision_id).delete()
 
     criteria = []
-    for i, name in enumerate(payload["names"]):
+    for i, name in enumerate(payload.names):
         c = Criterion(
             id=str(uuid.uuid4()),
             decision_id=decision_id,

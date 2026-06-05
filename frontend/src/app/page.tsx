@@ -27,7 +27,7 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
-  const { decisionId, Title, step, reset, setDecision, setCriteria,
+  const { decisionId, decisionTitle, step, reset, setDecision, setCriteria,
           setComparisons, setOptions, setScores, setResults } = useDecisionStore()
 
   useEffect(() => { setMounted(true) }, [])
@@ -79,7 +79,7 @@ export default function HomePage() {
                 In Progress — Step {step} of 4
               </p>
               <p className="text-sm font-medium text-gray-800 truncate">
-                {Title}
+                {decisionTitle}
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">

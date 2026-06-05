@@ -1,7 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { saveCriteria } from "@/lib/api"
+import axios from "axios"
+import { saveCriteria, getDecision } from "@/lib/api"
 import { useDecisionStore } from "@/store/decisionStore"
 
 const SUGGESTIONS = ["Price", "Performance", "Battery", "Display", "Portability", "Brand", "Warranty", "Design"]
@@ -10,11 +11,30 @@ export default function CriteriaPage() {
   const router = useRouter()
   const params = useParams()
   const decisionId = params.id as string
-  const { title, setCriteria, nextStep } = useDecisionStore()
+  const { decisionTitle, setCriteria, setDecision } = useDecisionStore()
 
   const [criteriaNames, setCriteriaNames] = useState<string[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!decisionId) {
+      router.push("/")
+      return
+    }
+
+    getDecision(decisionId)
+      .then((decision) => {
+        setDecision(decision.id, decision.title)
+        setReady(true)
+      })
+      .catch((err) => {
+        console.error("[Criteria] Decision lookup failed:", { decisionId, err })
+        alert("This decision was not found. Please start a new one from the homepage.")
+        router.push("/")
+      })
+  }, [decisionId, router, setDecision])
 
   const addCriterion = (name: string) => {
     const trimmed = name.trim()
@@ -27,15 +47,21 @@ export default function CriteriaPage() {
     setCriteriaNames(criteriaNames.filter((c) => c !== name))
 
   const handleNext = async () => {
+    if (!ready) return
     if (criteriaNames.length < 2) return alert("Add at least 2 criteria")
     setLoading(true)
     try {
-      const res = await saveCriteria(decisionId, criteriaNames)
-      setCriteria(res.data)
-      nextStep()
+      const criteria = await saveCriteria(decisionId, criteriaNames)
+      setCriteria(criteria)
       router.push(`/decision/${decisionId}/compare`)
-    } catch {
-      alert("Failed to save criteria. Is the backend running?")
+    } catch (err) {
+      console.error("[Criteria] Save failed:", { decisionId, err })
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        alert("Decision not found. Please start a new decision from the homepage.")
+        router.push("/")
+        return
+      }
+      alert("Failed to save criteria. Check the browser console for details.")
     } finally {
       setLoading(false)
     }
@@ -46,7 +72,7 @@ export default function CriteriaPage() {
       <div className="w-full max-w-lg">
         <p className="text-sm text-gray-400 mb-1">Step 1 of 3</p>
         <h1 className="text-2xl font-semibold text-gray-900 mb-1">What factors matter?</h1>
-        <p className="text-gray-500 text-sm mb-6">For: <span className="font-medium text-gray-700">{title}</span></p>
+        <p className="text-gray-500 text-sm mb-6">For: <span className="font-medium text-gray-700">{decisionTitle}</span></p>
 
         {/* Input */}
         <div className="flex gap-2 mb-4">
@@ -98,7 +124,7 @@ export default function CriteriaPage() {
 
         <button
           onClick={handleNext}
-          disabled={criteriaNames.length < 2 || loading}
+          disabled={!ready || criteriaNames.length < 2 || loading}
           className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
         >
           {loading ? "Saving..." : `Continue with ${criteriaNames.length} criteria →`}

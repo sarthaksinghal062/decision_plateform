@@ -18,7 +18,7 @@ interface Decision {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record
+const STATUS_CONFIG: Record<
   Decision['status'],
   { label: string; color: string; bg: string; step: number }
 > = {

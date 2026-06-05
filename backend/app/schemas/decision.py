@@ -5,6 +5,9 @@ from datetime import datetime
 class DecisionCreate(BaseModel):
     title: str
 
+class CriteriaCreate(BaseModel):
+    names: list[str]
+
 class DecisionResponse(BaseModel):
     id: str
     title: str
