@@ -62,6 +62,11 @@ export const deleteDecision = async (decisionId: string): Promise<void> => {
 ========================================= */
 
 export const saveCriteria = async (decisionId: string, names: string[]) => {
+  console.log(
+    `[api] saveCriteria → POST /api/decisions/${decisionId}/criteria`,
+    { names },
+  );
+
   const res = await api.post(`/api/decisions/${decisionId}/criteria`, {
     names,
   });
@@ -82,6 +87,13 @@ export const saveComparisons = async (
     preference: string;
   }[],
 ) => {
+  console.log(
+    `[api] saveComparisons → POST /api/decisions/${decisionId}/comparisons`,
+    {
+      count: comparisons.length,
+    },
+  );
+
   const res = await api.post(`/api/decisions/${decisionId}/comparisons`, {
     comparisons,
   });
@@ -90,6 +102,10 @@ export const saveComparisons = async (
 };
 
 export const calculateWeights = async (decisionId: string) => {
+  console.log(
+    `[api] calculateWeights → POST /api/decisions/${decisionId}/calculate-weights`,
+  );
+
   const res = await api.post(`/api/decisions/${decisionId}/calculate-weights`);
 
   return res.data;
@@ -100,6 +116,10 @@ export const calculateWeights = async (decisionId: string) => {
 ========================================= */
 
 export const saveOptions = async (decisionId: string, names: string[]) => {
+  console.log(`[api] saveOptions → POST /api/decisions/${decisionId}/options`, {
+    names,
+  });
+
   const res = await api.post(`/api/decisions/${decisionId}/options`, {
     names,
   });
@@ -110,22 +130,26 @@ export const saveOptions = async (decisionId: string, names: string[]) => {
 export const addOption = async (
   decisionId: string,
   name: string,
-  _description?: string, // kept for call-site compatibility; backend ignores descriptions
+  _description?: string,
 ) => {
   void _description;
+
   console.log(`[api] addOption → POST /api/decisions/${decisionId}/options`, {
     name,
   });
+
   const res = await api.post(`/api/decisions/${decisionId}/options`, {
     names: [name],
   });
-  // Backend returns an array; return the first (and only) element
+
   const options = res.data;
+
   return Array.isArray(options) ? options[0] : options;
 };
 
 /* =========================================
-   SCORES  (proxies to /ratings on backend)
+   SCORES
+   (proxied to /ratings backend route)
 ========================================= */
 
 export const saveScores = async (
@@ -139,6 +163,7 @@ export const saveScores = async (
   console.log(`[api] saveScores → POST /api/decisions/${decisionId}/ratings`, {
     count: scores.length,
   });
+
   const res = await api.post(`/api/decisions/${decisionId}/ratings`, {
     ratings: scores,
   });
@@ -151,6 +176,10 @@ export const saveScores = async (
 ========================================= */
 
 export const saveRatings = async (decisionId: string, ratings: object[]) => {
+  console.log(`[api] saveRatings → POST /api/decisions/${decisionId}/ratings`, {
+    count: ratings.length,
+  });
+
   const res = await api.post(`/api/decisions/${decisionId}/ratings`, {
     ratings,
   });
@@ -163,7 +192,67 @@ export const saveRatings = async (decisionId: string, ratings: object[]) => {
 ========================================= */
 
 export const getResults = async (decisionId: string) => {
+  console.log(`[api] getResults → GET /api/decisions/${decisionId}/results`);
+
   const res = await api.get(`/api/decisions/${decisionId}/results`);
 
-  return res.data;
+  const data = res.data;
+
+  // Normalize backend response
+  const rankedOptions = (data.ranking || []).map(
+    (
+      r: {
+        option_id: string;
+        name: string;
+        score: number;
+        breakdown?: Record<string, unknown>;
+      },
+      index: number,
+    ) => ({
+      id: r.option_id,
+      name: r.name,
+      final_score: r.score,
+      rank: index + 1,
+      scores_by_criterion: r.breakdown || {},
+    }),
+  );
+
+  return {
+    decision_id: decisionId,
+
+    decision_title: data.decision_title || "Decision Results",
+
+    ranked_options: rankedOptions,
+
+    criteria_weights: (data.weights || []).map(
+      (w: { criterion_id: string; criterion: string; weight: number }) => ({
+        id: w.criterion_id,
+        name: w.criterion,
+        weight: w.weight,
+      }),
+    ),
+
+    winner: data.winner || rankedOptions[0] || null,
+  };
 };
+
+/* =========================================
+   GLOBAL API ERROR LOGGER
+========================================= */
+
+api.interceptors.response.use(
+  (response) => response,
+
+  (error) => {
+    console.error("[API Error]", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+
+    return Promise.reject(error);
+  },
+);
+
+export default api;

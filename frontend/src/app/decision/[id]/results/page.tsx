@@ -1,56 +1,94 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { getResults } from '@/lib/api'
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { getResults } from "@/lib/api";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
-  PieChart, Pie,
-} from 'recharts'
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Legend,
+  PieChart,
+  Pie,
+} from "recharts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface OptionResult {
-  id: string
-  name: string
-  final_score: number
-  rank: number
-  scores_by_criterion: Record<string, number>   // criterion_id → raw score 1-10
+  id: string;
+  name: string;
+  final_score: number;
+  rank: number;
+  scores_by_criterion: Record<string, number>; // criterion_id → raw score 1-10
 }
 
 interface CriterionWeight {
-  id: string
-  name: string
-  weight: number   // 0.0 – 1.0
+  id: string;
+  name: string;
+  weight: number; // 0.0 – 1.0
 }
 
 interface ResultsData {
-  decision_id: string
-  decision_title: string
-  ranked_options: OptionResult[]
-  criteria_weights: CriterionWeight[]
+  decision_id?: string;
+  decision_title?: string;
+
+  ranked_options: OptionResult[];
+
+  criteria_weights: CriterionWeight[];
+
+  winner?: OptionResult | null;
 }
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
 
-const OPTION_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
-const DONUT_COLORS  = ['#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE']
+const OPTION_COLORS = [
+  "#2563EB",
+  "#16A34A",
+  "#D97706",
+  "#DC2626",
+  "#7C3AED",
+  "#0891B2",
+];
+const DONUT_COLORS = [
+  "#2563EB",
+  "#3B82F6",
+  "#60A5FA",
+  "#93C5FD",
+  "#BFDBFE",
+  "#DBEAFE",
+];
 
 function scoreColor(score: number): string {
-  if (score >= 8) return 'text-green-600'
-  if (score >= 6) return 'text-blue-600'
-  if (score >= 4) return 'text-amber-600'
-  return 'text-red-500'
+  if (score >= 8) return "text-green-600";
+  if (score >= 6) return "text-blue-600";
+  if (score >= 4) return "text-amber-600";
+  return "text-red-500";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function WinnerCard({ winner, title }: { winner: OptionResult; title: string }) {
+function WinnerCard({
+  winner,
+  title,
+}: {
+  winner: OptionResult;
+  title: string;
+}) {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700
-                    text-white rounded-2xl p-6 shadow-lg mb-4">
+    <div
+      className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700
+                    text-white rounded-2xl p-6 shadow-lg mb-4"
+    >
       {/* Background decoration */}
       <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/10 rounded-full" />
       <div className="absolute -bottom-8 -right-2 w-24 h-24 bg-white/5 rounded-full" />
@@ -64,18 +102,21 @@ function WinnerCard({ winner, title }: { winner: OptionResult; title: string }) 
           <div>
             <h2 className="text-2xl font-bold leading-tight">{winner.name}</h2>
             <p className="text-blue-200 text-sm mt-0.5">
-              Score: <span className="text-white font-bold">{winner.final_score.toFixed(2)}</span>
-              {' '}· Winner of "{title}"
+              Score:{" "}
+              <span className="text-white font-bold">
+                {winner.final_score.toFixed(2)}
+              </span>{" "}
+              · Winner of &quot;{title}&quot;
             </p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function RankingList({ options }: { options: OptionResult[] }) {
-  const max = options[0]?.final_score ?? 10
+  const max = options[0]?.final_score ?? 10;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
@@ -87,17 +128,25 @@ function RankingList({ options }: { options: OptionResult[] }) {
           <div key={opt.id}>
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center
+                <span
+                  className={`w-6 h-6 rounded-full text-xs font-bold flex items-center
                                   justify-center flex-shrink-0 ${
-                  i === 0 ? 'bg-blue-600 text-white' :
-                  i === 1 ? 'bg-gray-200 text-gray-700' :
-                            'bg-gray-100 text-gray-500'
-                }`}>
+                                    i === 0
+                                      ? "bg-blue-600 text-white"
+                                      : i === 1
+                                        ? "bg-gray-200 text-gray-700"
+                                        : "bg-gray-100 text-gray-500"
+                                  }`}
+                >
                   {i + 1}
                 </span>
-                <span className="text-sm font-medium text-gray-800">{opt.name}</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {opt.name}
+                </span>
               </div>
-              <span className={`text-sm font-bold ${scoreColor(opt.final_score)}`}>
+              <span
+                className={`text-sm font-bold ${scoreColor(opt.final_score)}`}
+              >
                 {opt.final_score.toFixed(2)}
               </span>
             </div>
@@ -106,7 +155,7 @@ function RankingList({ options }: { options: OptionResult[] }) {
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${(opt.final_score / max) * 100}%`,
-                  backgroundColor: OPTION_COLORS[i] ?? '#9CA3AF',
+                  backgroundColor: OPTION_COLORS[i] ?? "#9CA3AF",
                 }}
               />
             </div>
@@ -114,15 +163,15 @@ function RankingList({ options }: { options: OptionResult[] }) {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function FinalScoresBar({ options }: { options: OptionResult[] }) {
   const data = options.map((o, i) => ({
     name: o.name,
     score: parseFloat(o.final_score.toFixed(2)),
-    color: OPTION_COLORS[i] ?? '#9CA3AF',
-  }))
+    color: OPTION_COLORS[i] ?? "#9CA3AF",
+  }));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
@@ -130,23 +179,33 @@ function FinalScoresBar({ options }: { options: OptionResult[] }) {
         Score Comparison
       </p>
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: 8, left: -20, bottom: 4 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: "#6B7280" }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             domain={[0, 10]}
-            tick={{ fontSize: 11, fill: '#9CA3AF' }}
+            tick={{ fontSize: 11, fill: "#9CA3AF" }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip
-            contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: 13 }}
-            formatter={(val: number) => [val.toFixed(2), 'Score']}
+            contentStyle={{
+              borderRadius: "12px",
+              border: "1px solid #E5E7EB",
+              fontSize: 13,
+            }}
+            formatter={(val: unknown) => [
+              (typeof val === "number" ? val : Number(val ?? 0)).toFixed(2),
+              "Score",
+            ]}
           />
           <Bar dataKey="score" radius={[6, 6, 0, 0]} maxBarSize={60}>
             {data.map((entry, i) => (
@@ -156,24 +215,24 @@ function FinalScoresBar({ options }: { options: OptionResult[] }) {
         </BarChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }
 
 function RadarCompare({
   options,
   criteria,
 }: {
-  options: OptionResult[]
-  criteria: CriterionWeight[]
+  options: OptionResult[];
+  criteria: CriterionWeight[];
 }) {
   // Build data: one row per criterion
   const data = criteria.map((c) => {
-    const row: Record<string, string | number> = { criterion: c.name }
+    const row: Record<string, string | number> = { criterion: c.name };
     options.forEach((o) => {
-      row[o.name] = o.scores_by_criterion?.[c.id] ?? 0
-    })
-    return row
-  })
+      row[o.name] = o.scores_by_criterion?.[c.id] ?? 0;
+    });
+    return row;
+  });
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
@@ -185,11 +244,11 @@ function RadarCompare({
           <PolarGrid stroke="#E5E7EB" />
           <PolarAngleAxis
             dataKey="criterion"
-            tick={{ fontSize: 11, fill: '#6B7280' }}
+            tick={{ fontSize: 11, fill: "#6B7280" }}
           />
           <PolarRadiusAxis
             domain={[0, 10]}
-            tick={{ fontSize: 10, fill: '#9CA3AF' }}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
             tickCount={4}
           />
           {options.map((opt, i) => (
@@ -197,8 +256,8 @@ function RadarCompare({
               key={opt.id}
               name={opt.name}
               dataKey={opt.name}
-              stroke={OPTION_COLORS[i] ?? '#9CA3AF'}
-              fill={OPTION_COLORS[i] ?? '#9CA3AF'}
+              stroke={OPTION_COLORS[i] ?? "#9CA3AF"}
+              fill={OPTION_COLORS[i] ?? "#9CA3AF"}
               fillOpacity={0.12}
               strokeWidth={2}
             />
@@ -209,19 +268,23 @@ function RadarCompare({
             wrapperStyle={{ fontSize: 12 }}
           />
           <Tooltip
-            contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: 13 }}
+            contentStyle={{
+              borderRadius: "12px",
+              border: "1px solid #E5E7EB",
+              fontSize: 13,
+            }}
           />
         </RadarChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }
 
 function WeightsDonut({ criteria }: { criteria: CriterionWeight[] }) {
   const data = criteria.map((c) => ({
     name: c.name,
     value: parseFloat((c.weight * 100).toFixed(1)),
-  }))
+  }));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
@@ -245,8 +308,12 @@ function WeightsDonut({ criteria }: { criteria: CriterionWeight[] }) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(val: number) => [`${val}%`, 'Weight']}
-              contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: 13 }}
+              formatter={(val: unknown) => [`${val ?? 0}%`, "Weight"]}
+              contentStyle={{
+                borderRadius: "12px",
+                border: "1px solid #E5E7EB",
+                fontSize: 13,
+              }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -258,31 +325,42 @@ function WeightsDonut({ criteria }: { criteria: CriterionWeight[] }) {
               <div className="flex items-center gap-2">
                 <span
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                  style={{
+                    backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length],
+                  }}
                 />
                 <span className="text-xs text-gray-600">{d.name}</span>
               </div>
-              <span className="text-xs font-semibold text-gray-800">{d.value}%</span>
+              <span className="text-xs font-semibold text-gray-800">
+                {d.value}%
+              </span>
             </div>
           ))}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function ScoreBreakdown({
   options,
   criteria,
 }: {
-  options: OptionResult[]
-  criteria: CriterionWeight[]
+  options: OptionResult[];
+  criteria: CriterionWeight[];
 }) {
   const CELL_COLOR: Record<number, string> = {
-    10: 'bg-emerald-500', 9: 'bg-green-500', 8: 'bg-green-400',
-    7: 'bg-lime-400',     6: 'bg-yellow-400', 5: 'bg-amber-300',
-    4: 'bg-amber-400',   3: 'bg-orange-400', 2: 'bg-red-400', 1: 'bg-red-500',
-  }
+    10: "bg-emerald-500",
+    9: "bg-green-500",
+    8: "bg-green-400",
+    7: "bg-lime-400",
+    6: "bg-yellow-400",
+    5: "bg-amber-300",
+    4: "bg-amber-400",
+    3: "bg-orange-400",
+    2: "bg-red-400",
+    1: "bg-red-500",
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4 overflow-x-auto">
@@ -292,10 +370,17 @@ function ScoreBreakdown({
       <table className="w-full text-sm text-gray-700 min-w-max">
         <thead>
           <tr className="border-b border-gray-100">
-            <th className="text-left py-2 pr-6 font-medium text-gray-500 text-xs">Factor</th>
-            <th className="text-center py-2 px-3 font-medium text-gray-500 text-xs">Weight</th>
+            <th className="text-left py-2 pr-6 font-medium text-gray-500 text-xs">
+              Factor
+            </th>
+            <th className="text-center py-2 px-3 font-medium text-gray-500 text-xs">
+              Weight
+            </th>
             {options.map((o) => (
-              <th key={o.id} className="text-center py-2 px-3 font-medium text-gray-500 text-xs">
+              <th
+                key={o.id}
+                className="text-center py-2 px-3 font-medium text-gray-500 text-xs"
+              >
                 {o.name}
               </th>
             ))}
@@ -304,27 +389,31 @@ function ScoreBreakdown({
         <tbody>
           {criteria.map((c) => (
             <tr key={c.id} className="border-b border-gray-50">
-              <td className="py-2.5 pr-6 text-sm font-medium text-gray-800">{c.name}</td>
+              <td className="py-2.5 pr-6 text-sm font-medium text-gray-800">
+                {c.name}
+              </td>
               <td className="text-center py-2.5 px-3">
                 <span className="text-xs text-gray-400 font-medium">
                   {(c.weight * 100).toFixed(0)}%
                 </span>
               </td>
               {options.map((o) => {
-                const s = o.scores_by_criterion?.[c.id] ?? 0
+                const s = o.scores_by_criterion?.[c.id] ?? 0;
                 return (
                   <td key={o.id} className="text-center py-2.5 px-3">
                     {s > 0 ? (
-                      <span className={`inline-flex w-8 h-8 rounded-lg text-white text-xs
+                      <span
+                        className={`inline-flex w-8 h-8 rounded-lg text-white text-xs
                                         font-bold items-center justify-center
-                                        ${CELL_COLOR[s] ?? 'bg-gray-300'}`}>
+                                        ${CELL_COLOR[s] ?? "bg-gray-300"}`}
+                      >
                         {s}
                       </span>
                     ) : (
                       <span className="text-gray-200">—</span>
                     )}
                   </td>
-                )
+                );
               })}
             </tr>
           ))}
@@ -339,7 +428,7 @@ function ScoreBreakdown({
               <td key={o.id} className="text-center py-2.5 px-3">
                 <span
                   className="text-sm font-bold"
-                  style={{ color: OPTION_COLORS[i] ?? '#6B7280' }}
+                  style={{ color: OPTION_COLORS[i] ?? "#6B7280" }}
                 >
                   {o.final_score.toFixed(2)}
                 </span>
@@ -349,7 +438,7 @@ function ScoreBreakdown({
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
 // ─── Skeleton loader ──────────────────────────────────────────────────────────
@@ -362,38 +451,73 @@ function Skeleton() {
       <div className="h-52 bg-gray-100 rounded-2xl" />
       <div className="h-64 bg-gray-100 rounded-2xl" />
     </div>
-  )
+  );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ResultsPage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-  const [results, setResults]   = useState<ResultsData | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState('')
-  const [copied, setCopied]     = useState(false)
-  const [mounted, setMounted]   = useState(false)
-
-  useEffect(() => { setMounted(true) }, [])
+  const [results, setResults] = useState<ResultsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  // Initialize mounted based on presence of `window` to avoid calling setState
+  // synchronously within an effect (avoids cascading renders warning).
+  const [mounted, setMounted] = useState<boolean>(
+    () => typeof window !== "undefined",
+  );
 
   useEffect(() => {
-    if (!id) return
-    getResults(id)
-      .then(setResults)
-      .catch(() => setError('Could not load results. Please try again.'))
-      .finally(() => setLoading(false))
-  }, [id])
+    if (!id) return;
 
+    type LegacyDataShape = {
+      ranking?: ResultsData["ranked_options"];
+      weights?: ResultsData["criteria_weights"];
+    };
+
+    const fetchResults = async () => {
+      try {
+        setLoading(true);
+
+        const data = await getResults(id);
+
+        const normalized: ResultsData = {
+          ...data,
+          ranked_options:
+            data.ranked_options || (data as LegacyDataShape).ranking || [],
+
+          criteria_weights:
+            data.criteria_weights || (data as LegacyDataShape).weights || [],
+
+          winner:
+            data.winner ||
+            data.ranked_options?.[0] ||
+            (data as LegacyDataShape).ranking?.[0] ||
+            null,
+        };
+
+        setResults(normalized);
+      } catch (err) {
+        console.error("Results fetch failed", err);
+
+        setError("Could not load results. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [id]);
   const handleCopy = () => {
-    navigator.clipboard.writeText(window.location.href)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-  if (!mounted || loading) return <Skeleton />
+  if (!mounted || loading) return <Skeleton />;
 
   if (error || !results) {
     return (
@@ -410,16 +534,15 @@ export default function ResultsPage() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
-  const { decision_title, ranked_options, criteria_weights } = results
-  const winner = ranked_options[0]
+  const { decision_title, ranked_options, criteria_weights } = results;
+  const winner = ranked_options[0];
 
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-xl mx-auto">
-
         {/* Page header */}
         <div className="mb-5">
           <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">
@@ -429,7 +552,7 @@ export default function ResultsPage() {
         </div>
 
         {/* 1 — Winner card */}
-        <WinnerCard winner={winner} title={decision_title} />
+        <WinnerCard winner={winner} title={decision_title ?? ""} />
 
         {/* 2 — Rankings */}
         <RankingList options={ranked_options} />
@@ -451,7 +574,7 @@ export default function ResultsPage() {
         {/* Actions */}
         <div className="flex gap-3 mt-2">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push("/")}
             className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-700
                        font-medium hover:bg-gray-50 transition-colors text-sm bg-white"
           >
@@ -462,11 +585,10 @@ export default function ResultsPage() {
             className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium
                        hover:bg-blue-700 transition-colors text-sm"
           >
-            {copied ? '✓ Copied!' : 'Share Results'}
+            {copied ? "✓ Copied!" : "Share Results"}
           </button>
         </div>
-
       </div>
     </main>
-  )
+  );
 }
