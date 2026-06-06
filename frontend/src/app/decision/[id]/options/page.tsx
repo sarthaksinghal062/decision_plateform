@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { addOption } from '@/lib/api'
+import { saveOptions } from '@/lib/api'
 import { useDecisionStore } from '@/store/decisionStore'
 
 interface Option {
@@ -43,19 +43,14 @@ export default function OptionsPage() {
   const [inputValue, setInputValue] = useState('')
   const [inputDesc, setInputDesc]   = useState('')
   const [showDesc, setShowDesc]     = useState(false)
-  const [saving, setSaving]         = useState(false)
   const [savingAll, setSavingAll]   = useState(false)
   const [error, setError]           = useState('')
-  const [mounted, setMounted]       = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setMounted(true)
     setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
-
-  if (!mounted) return null
 
   const suggestions = getSuggestions(decisionTitle ?? '')
 
@@ -96,11 +91,8 @@ export default function OptionsPage() {
     setSavingAll(true)
     setError('')
     try {
-      const saved: Option[] = []
-      for (const opt of options) {
-        const res = await addOption(id, opt.name, opt.description)
-        saved.push(res)
-      }
+      console.log(`[options page] saving ${options.length} options in one batch`)
+      const saved: Option[] = await saveOptions(id, options.map((o) => o.name))
       storeSetOptions(saved)
       router.push(`/decision/${id}/score`)
     } catch (e) {
