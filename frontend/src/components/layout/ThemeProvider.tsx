@@ -14,10 +14,13 @@ export default function ThemeProvider({
   useEffect(() => {
     const root = document.documentElement
 
-    const applyTheme = (dark: boolean) => {
-      if (dark) {
+    /** Apply dark or light class — removes whichever is not needed */
+    const applyTheme = (isDark: boolean) => {
+      if (isDark) {
         root.classList.add('dark')
+        root.classList.remove('light')
       } else {
+        root.classList.add('light')
         root.classList.remove('dark')
       }
     }
@@ -32,7 +35,7 @@ export default function ThemeProvider({
       return
     }
 
-    // system — follow OS preference
+    // system — follow OS preference live
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     applyTheme(mq.matches)
 
@@ -43,3 +46,4 @@ export default function ThemeProvider({
 
   return <>{children}</>
 }
+

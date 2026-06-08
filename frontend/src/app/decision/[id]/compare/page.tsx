@@ -1,173 +1,189 @@
 // frontend/src/app/decision/[id]/compare/page.tsx
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { saveComparisons, calculateWeights } from '@/lib/api'
-import { useDecisionStore } from '@/store/decisionStore'
+import { useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { saveComparisons, calculateWeights } from "@/lib/api";
+import { useDecisionStore } from "@/store/decisionStore";
 
 // AHP preference levels
 const PREFERENCES = [
-  { label: 'Extremely', value: 'extremely', scale: 7 },
-  { label: 'Strongly',  value: 'strongly',  scale: 5 },
-  { label: 'Moderately', value: 'moderately', scale: 3 },
-  { label: 'Slightly',  value: 'slightly',  scale: 2 },
-  { label: 'Equal',     value: 'equal',     scale: 1 },
-  { label: 'Slightly',  value: 'slightly',  scale: 2 },
-  { label: 'Moderately', value: 'moderately', scale: 3 },
-  { label: 'Strongly',  value: 'strongly',  scale: 5 },
-  { label: 'Extremely', value: 'extremely', scale: 7 },
-]
+  { label: "Extremely", value: "extremely", scale: 7 },
+  { label: "Strongly", value: "strongly", scale: 5 },
+  { label: "Moderately", value: "moderately", scale: 3 },
+  { label: "Slightly", value: "slightly", scale: 2 },
+  { label: "Equal", value: "equal", scale: 1 },
+  { label: "Slightly", value: "slightly", scale: 2 },
+  { label: "Moderately", value: "moderately", scale: 3 },
+  { label: "Strongly", value: "strongly", scale: 5 },
+  { label: "Extremely", value: "extremely", scale: 7 },
+];
 
 interface Criterion {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 interface PairComparison {
-  criterion_a: string
-  criterion_b: string
-  winner: string
-  preference: string
+  criterion_a: string;
+  criterion_b: string;
+  winner: string;
+  preference: string;
 }
 
 // Generate all unique pairs from criteria list
 function generatePairs(criteria: Criterion[]) {
-  const pairs: [Criterion, Criterion][] = []
+  const pairs: [Criterion, Criterion][] = [];
   for (let i = 0; i < criteria.length; i++) {
     for (let j = i + 1; j < criteria.length; j++) {
-      pairs.push([criteria[i], criteria[j]])
+      pairs.push([criteria[i], criteria[j]]);
     }
   }
-  return pairs
+  return pairs;
 }
 
 export default function ComparePage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-  // Pull criteria from Zustand store (saved in Step 1)
-  const { criteria, decisionTitle, setComparisons: storeSetComparisons } = useDecisionStore()
+  const {
+    criteria,
+    decisionTitle,
+    setComparisons: storeSetComparisons,
+  } = useDecisionStore();
 
-  const [pairs, setPairs] = useState<[Criterion, Criterion][]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [answers, setAnswers] = useState<PairComparison[]>([])
-
-  // Selected state for current pair: { winner: id, preference: string } | null
-  const [selected, setSelected] = useState<{
-    winner: string
-    preference: string
-    side: 'left' | 'right' | 'equal'
-  } | null>(null)
-
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
+  const pairs = useMemo(() => {
     if (criteria && criteria.length >= 2) {
-      setPairs(generatePairs(criteria))
+      return generatePairs(criteria);
     }
-  }, [criteria])
+    return [];
+  }, [criteria]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<PairComparison[]>([]);
+
+  const [selected, setSelected] = useState<{
+    winner: string;
+    preference: string;
+    side: "left" | "right" | "equal";
+  } | null>(null);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   if (!criteria || criteria.length < 2) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">No criteria found. Please go back and add criteria first.</p>
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="card p-8 text-center max-w-md">
+          <p className="text-[var(--text-2)] mb-6">
+            No criteria found. Please go back and add criteria first.
+          </p>
           <button
             onClick={() => router.push(`/decision/${id}/criteria`)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+            className="btn-primary px-8 py-3 rounded-2xl"
           >
             ← Back to Criteria
           </button>
         </div>
       </div>
-    )
+    );
   }
 
-  const totalPairs = pairs.length
-  const currentPair = pairs[currentIndex]
-  const progress = totalPairs > 0 ? Math.round((currentIndex / totalPairs) * 100) : 0
-  const isLast = currentIndex === totalPairs - 1
+  const totalPairs = pairs.length;
+  const currentPair = pairs[currentIndex];
+  const progress =
+    totalPairs > 0 ? Math.round((currentIndex / totalPairs) * 100) : 0;
+  const isLast = currentIndex === totalPairs - 1;
 
-  const handleSelect = (side: 'left' | 'right' | 'equal', preference: string) => {
-    if (!currentPair) return
-    const [a, b] = currentPair
-    const winner = side === 'left' ? a.id : side === 'right' ? b.id : a.id
-    setSelected({ winner, preference, side })
-  }
+  const handleSelect = (
+    side: "left" | "right" | "equal",
+    preference: string,
+  ) => {
+    if (!currentPair) return;
+    const [a, b] = currentPair;
+    const winner = side === "left" ? a.id : side === "right" ? b.id : a.id;
+    setSelected({ winner, preference, side });
+  };
 
   const handleNext = () => {
-    if (!selected || !currentPair) return
-    const [a, b] = currentPair
+    if (!selected || !currentPair) return;
+    const [a, b] = currentPair;
 
     const entry: PairComparison = {
       criterion_a: a.id,
       criterion_b: b.id,
-      winner: selected.side === 'equal' ? a.id : selected.winner,
+      winner: selected.side === "equal" ? a.id : selected.winner,
       preference: selected.preference,
-    }
+    };
 
-    const newAnswers = [...answers, entry]
-    setAnswers(newAnswers)
-    setSelected(null)
+    const newAnswers = [...answers, entry];
+    setAnswers(newAnswers);
+    setSelected(null);
 
     if (!isLast) {
-      setCurrentIndex((i) => i + 1)
+      setCurrentIndex((i) => i + 1);
     } else {
-      handleSubmit(newAnswers)
+      handleSubmit(newAnswers);
     }
-  }
+  };
 
   const handleSubmit = async (finalAnswers: PairComparison[]) => {
-    setSaving(true)
-    setError('')
+    setSaving(true);
+    setError("");
     try {
-      await saveComparisons(id, finalAnswers)
-      const weights = await calculateWeights(id)
-      storeSetComparisons(finalAnswers, weights)
-      router.push(`/decision/${id}/options`)
+      await saveComparisons(id, finalAnswers);
+      const weights = await calculateWeights(id);
+      storeSetComparisons(finalAnswers, weights);
+      router.push(`/decision/${id}/options`);
     } catch (e) {
-      console.error(e)
-      setError('Something went wrong. Please try again.')
-      setSaving(false)
+      console.error(e);
+      setError("Something went wrong. Please try again.");
+      setSaving(false);
     }
-  }
+  };
 
   if (saving) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Calculating weights with AHP...</p>
-          <p className="text-gray-400 text-sm mt-1">This takes just a second</p>
+          <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+          <p className="text-[var(--text-1)] font-medium">
+            Calculating weights with AHP...
+          </p>
+          <p className="text-[var(--text-2)] text-sm mt-2">
+            This takes just a second
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-xl mx-auto">
-
+    <main className="p-6 max-w-xl mx-auto">
+      <div className="card p-8">
         {/* Header */}
-        <div className="mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Step 2 of 4</p>
-          <h1 className="text-xl font-bold text-gray-900">Compare Factors</h1>
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-widest text-[var(--text-3)] mb-1">
+            STEP 2 • COMPARISON
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Which matters more?
+          </h1>
           {decisionTitle && (
-            <p className="text-sm text-gray-500 mt-0.5">For: {decisionTitle}</p>
+            <p className="text-[var(--text-2)] mt-2">For: {decisionTitle}</p>
           )}
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex justify-between text-xs text-gray-400 mb-1.5">
-            <span>Comparison {currentIndex + 1} of {totalPairs}</span>
-            <span>{progress}% done</span>
+        <div className="mb-8">
+          <div className="flex justify-between text-xs text-[var(--text-3)] mb-2">
+            <span>
+              Comparison {currentIndex + 1} of {totalPairs}
+            </span>
+            <span>{progress}% complete</span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-300"
+              className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -175,89 +191,92 @@ export default function ComparePage() {
 
         {/* Pairwise Card */}
         {currentPair && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            
-            {/* Question */}
-            <p className="text-center text-sm text-gray-500 mb-5">
-              Which factor matters <span className="font-semibold text-gray-700">more</span> to you?
+          <div className="mb-8">
+            <p className="text-center text-[var(--text-2)] mb-6">
+              Which factor matters{" "}
+              <span className="font-semibold text-[var(--text-1)]">more</span>{" "}
+              to you?
             </p>
 
             {/* Two options side by side */}
-            <div className="flex items-center gap-3 mb-6">
-              {/* Left criterion */}
+            <div className="flex items-center gap-3 mb-8">
+              {/* Left */}
               <button
                 onClick={() => {
-                  // Clicking a criterion selects it with "moderately" default
-                  if (selected?.side === 'left') return
+                  if (selected?.side === "left") return;
                   setSelected({
                     winner: currentPair[0].id,
-                    preference: 'moderately',
-                    side: 'left',
-                  })
+                    preference: "moderately",
+                    side: "left",
+                  });
                 }}
-                className={`flex-1 py-4 px-3 rounded-xl border-2 text-center font-semibold text-sm transition-all ${
-                  selected?.side === 'left'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                className={`flex-1 py-5 px-4 rounded-2xl border-2 text-center font-medium transition-all ${
+                  selected?.side === "left"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-1)]"
+                    : "border-[var(--border)] text-[var(--text-1)] hover:border-[var(--accent)]/50"
                 }`}
               >
                 {currentPair[0].name}
               </button>
 
-              {/* Equal button */}
+              {/* Equal */}
               <button
-                onClick={() => handleSelect('equal', 'equal')}
-                className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
-                  selected?.side === 'equal'
-                    ? 'border-gray-500 bg-gray-100 text-gray-700'
-                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                onClick={() => handleSelect("equal", "equal")}
+                className={`px-6 py-3 rounded-2xl border-2 text-sm font-medium transition-all ${
+                  selected?.side === "equal"
+                    ? "border-[var(--text-2)] bg-[var(--surface-2)] text-[var(--text-1)]"
+                    : "border-[var(--border)] text-[var(--text-3)] hover:border-[var(--text-2)]"
                 }`}
               >
                 Equal
               </button>
 
-              {/* Right criterion */}
+              {/* Right */}
               <button
                 onClick={() => {
-                  if (selected?.side === 'right') return
+                  if (selected?.side === "right") return;
                   setSelected({
                     winner: currentPair[1].id,
-                    preference: 'moderately',
-                    side: 'right',
-                  })
+                    preference: "moderately",
+                    side: "right",
+                  });
                 }}
-                className={`flex-1 py-4 px-3 rounded-xl border-2 text-center font-semibold text-sm transition-all ${
-                  selected?.side === 'right'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                className={`flex-1 py-5 px-4 rounded-2xl border-2 text-center font-medium transition-all ${
+                  selected?.side === "right"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-1)]"
+                    : "border-[var(--border)] text-[var(--text-1)] hover:border-[var(--accent)]/50"
                 }`}
               >
                 {currentPair[1].name}
               </button>
             </div>
 
-            {/* Strength slider — only show when left or right selected (not equal) */}
-            {selected && selected.side !== 'equal' && (
-              <div className="mb-6">
-                <p className="text-xs text-gray-400 text-center mb-3">
-                  How much more important is{' '}
-                  <span className="font-semibold text-gray-600">
-                    {selected.side === 'left' ? currentPair[0].name : currentPair[1].name}
-                  </span>?
+            {/* Strength selector */}
+            {selected && selected.side !== "equal" && (
+              <div className="mb-8">
+                <p className="text-xs text-[var(--text-3)] text-center mb-4">
+                  How much more important is{" "}
+                  <span className="font-medium text-[var(--text-1)]">
+                    {selected.side === "left"
+                      ? currentPair[0].name
+                      : currentPair[1].name}
+                  </span>
+                  ?
                 </p>
 
-                {/* Preference buttons grid */}
                 <div className="grid grid-cols-4 gap-2">
-                  {(['slightly', 'moderately', 'strongly', 'extremely'] as const).map((pref) => (
+                  {(
+                    ["slightly", "moderately", "strongly", "extremely"] as const
+                  ).map((pref) => (
                     <button
                       key={pref}
                       onClick={() =>
-                        setSelected((s) => s ? { ...s, preference: pref } : s)
+                        setSelected((s) => (s ? { ...s, preference: pref } : s))
                       }
-                      className={`py-2 px-1 rounded-lg text-xs font-medium border transition-all capitalize ${
+                      className={`py-3 px-2 rounded-2xl text-xs font-medium border transition-all capitalize ${
                         selected?.preference === pref
-                          ? 'border-blue-500 bg-blue-500 text-white'
-                          : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                          : "border-[var(--border)] text-[var(--text-2)] hover:border-[var(--accent)]/50"
                       }`}
                     >
                       {pref}
@@ -265,69 +284,76 @@ export default function ComparePage() {
                   ))}
                 </div>
 
-                {/* AHP Scale hint */}
-                <p className="text-center text-xs text-gray-300 mt-2">
-                  slightly = 2× · moderately = 3× · strongly = 5× · extremely = 7×
+                <p className="text-center text-xs text-[var(--text-3)] mt-4">
+                  slightly = 2× · moderately = 3× · strongly = 5× · extremely =
+                  7×
                 </p>
               </div>
             )}
 
-            {/* Summary sentence */}
+            {/* Summary */}
             {selected && (
-              <div className="bg-gray-50 rounded-lg px-4 py-2.5 text-center text-sm text-gray-600 mb-5">
-                {selected.side === 'equal' ? (
+              <div className="bg-[var(--surface-2)] rounded-2xl p-5 text-center text-sm mb-8 border border-[var(--border)]">
+                {selected.side === "equal" ? (
                   <>
-                    <span className="font-medium text-gray-800">{currentPair[0].name}</span>
-                    {' and '}
-                    <span className="font-medium text-gray-800">{currentPair[1].name}</span>
-                    {' are equally important'}
+                    <span className="font-medium text-[var(--text-1)]">
+                      {currentPair[0].name}
+                    </span>
+                    {" and "}
+                    <span className="font-medium text-[var(--text-1)]">
+                      {currentPair[1].name}
+                    </span>
+                    {" are equally important"}
                   </>
                 ) : (
                   <>
-                    <span className="font-medium text-gray-800">
-                      {selected.side === 'left' ? currentPair[0].name : currentPair[1].name}
+                    <span className="font-medium text-[var(--text-1)]">
+                      {selected.side === "left"
+                        ? currentPair[0].name
+                        : currentPair[1].name}
                     </span>
-                    {' is '}
-                    <span className="font-medium text-blue-600 capitalize">{selected.preference}</span>
-                    {' more important than '}
-                    <span className="font-medium text-gray-800">
-                      {selected.side === 'left' ? currentPair[1].name : currentPair[0].name}
+                    {" is "}
+                    <span className="font-medium text-[var(--accent)] capitalize">
+                      {selected.preference}
+                    </span>
+                    {" more important than "}
+                    <span className="font-medium text-[var(--text-1)]">
+                      {selected.side === "left"
+                        ? currentPair[1].name
+                        : currentPair[0].name}
                     </span>
                   </>
                 )}
               </div>
             )}
 
-            {/* Next / Finish button */}
+            {/* Action Button */}
             <button
               onClick={handleNext}
               disabled={!selected}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium
-                         hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed
-                         transition-colors text-sm"
+              className="w-full btn-primary py-4 rounded-2xl text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {isLast ? 'Calculate Weights →' : 'Next Comparison →'}
+              {isLast ? "Calculate Weights →" : "Next Comparison →"}
             </button>
 
             {error && (
-              <p className="text-red-500 text-xs text-center mt-3">{error}</p>
+              <p className="text-red-400 text-center mt-4 text-sm">{error}</p>
             )}
           </div>
         )}
 
-        {/* Criteria reminder */}
-        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+        {/* Criteria chips */}
+        <div className="flex flex-wrap gap-2 justify-center">
           {criteria.map((c: Criterion) => (
             <span
               key={c.id}
-              className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-full text-gray-500"
+              className="text-xs px-4 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl text-[var(--text-2)]"
             >
               {c.name}
             </span>
           ))}
         </div>
-
       </div>
     </main>
-  )
+  );
 }

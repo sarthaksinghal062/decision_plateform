@@ -11,27 +11,99 @@ interface Option {
   description?: string
 }
 
-// Example suggestions based on common decision types
-const EXAMPLE_OPTIONS: Record<string, string[]> = {
-  laptop:   ['MacBook Air M3', 'Dell XPS 15', 'Lenovo ThinkPad X1'],
-  city:     ['Mumbai', 'Bangalore', 'Pune'],
-  job:      ['Startup Offer', 'MNC Offer', 'Freelance'],
-  phone:    ['iPhone 15', 'Samsung S24', 'OnePlus 12'],
-  default:  ['Option A', 'Option B', 'Option C'],
+// ── Suggestions & contextual placeholders by decision type ─────────────────────
+const DECISION_TYPES: Array<{
+  keywords: string[]
+  suggestions: string[]
+  placeholder: string
+}> = [
+  {
+    keywords: ['laptop', 'macbook', 'computer', 'pc', 'notebook'],
+    suggestions: ['MacBook Air M3', 'Dell XPS 15', 'Lenovo ThinkPad X1'],
+    placeholder: 'e.g. MacBook Air M3',
+  },
+  {
+    keywords: ['mba', 'college', 'university', 'school', 'campus', 'course', 'degree', 'admission', 'institute'],
+    suggestions: ['IIM Ahmedabad', 'IIM Bangalore', 'ISB Hyderabad', 'IIM Calcutta'],
+    placeholder: 'e.g. IIM Ahmedabad',
+  },
+  {
+    keywords: ['city', 'move', 'relocat', 'live', 'settle'],
+    suggestions: ['Mumbai', 'Bangalore', 'Pune', 'Hyderabad'],
+    placeholder: 'e.g. Mumbai',
+  },
+  {
+    keywords: ['job', 'offer', 'career', 'work', 'company', 'role', 'position'],
+    suggestions: ['Startup Offer', 'MNC Offer', 'Remote Role', 'Freelance'],
+    placeholder: 'e.g. Startup Offer',
+  },
+  {
+    keywords: ['phone', 'mobile', 'smartphone', 'iphone', 'android'],
+    suggestions: ['iPhone 15 Pro', 'Samsung Galaxy S24', 'OnePlus 12', 'Pixel 8'],
+    placeholder: 'e.g. iPhone 15 Pro',
+  },
+  {
+    keywords: ['car', 'vehicle', 'bike', 'suv', 'sedan', 'buy car'],
+    suggestions: ['Maruti Swift', 'Hyundai Creta', 'Tata Nexon', 'Honda City'],
+    placeholder: 'e.g. Hyundai Creta',
+  },
+  {
+    keywords: ['house', 'flat', 'apartment', 'rent', 'property', 'home'],
+    suggestions: ['2BHK Koramangala', '3BHK Whitefield', 'Studio HSR Layout'],
+    placeholder: 'e.g. 2BHK in Koramangala',
+  },
+  {
+    keywords: ['food', 'restaurant', 'eat', 'cuisine', 'dish', 'meal'],
+    suggestions: ['Pizza', 'Biryani', 'Sushi', 'Pasta'],
+    placeholder: 'e.g. Biryani',
+  },
+  {
+    keywords: ['vacation', 'travel', 'trip', 'holiday', 'destination', 'visit'],
+    suggestions: ['Goa', 'Manali', 'Bali', 'Paris'],
+    placeholder: 'e.g. Goa',
+  },
+  {
+    keywords: ['country', 'abroad', 'immigrat', 'visa', 'settle abroad'],
+    suggestions: ['Canada', 'Germany', 'Australia', 'Netherlands'],
+    placeholder: 'e.g. Canada',
+  },
+  {
+    keywords: ['cloud', 'hosting', 'server', 'platform', 'saas', 'tool', 'software'],
+    suggestions: ['AWS', 'Google Cloud', 'Azure', 'Vercel'],
+    placeholder: 'e.g. AWS',
+  },
+  {
+    keywords: ['invest', 'stock', 'fund', 'crypto', 'asset', 'mutual fund'],
+    suggestions: ['Index Fund', 'Gold ETF', 'Fixed Deposit', 'Real Estate'],
+    placeholder: 'e.g. Index Fund',
+  },
+  {
+    keywords: ['camera', 'dslr', 'mirrorless', 'lens', 'photography'],
+    suggestions: ['Sony A7C', 'Canon R50', 'Fujifilm X-T5', 'Nikon Z30'],
+    placeholder: 'e.g. Sony A7C',
+  },
+  {
+    keywords: ['watch', 'smartwatch', 'wearable'],
+    suggestions: ['Apple Watch Series 9', 'Samsung Galaxy Watch 6', 'Garmin Fenix'],
+    placeholder: 'e.g. Apple Watch Series 9',
+  },
+  {
+    keywords: ['headphone', 'earphone', 'earbud', 'speaker', 'audio'],
+    suggestions: ['Sony WH-1000XM5', 'AirPods Pro', 'Bose QC45'],
+    placeholder: 'e.g. Sony WH-1000XM5',
+  },
+]
+
+const DEFAULT_TYPE = {
+  suggestions: ['Option A', 'Option B', 'Option C'],
+  placeholder: 'e.g. Option A',
 }
 
-function getSuggestions(title: string): string[] {
-  const t = title?.toLowerCase() ?? ''
-  if (t.includes('laptop') || t.includes('macbook') || t.includes('computer'))
-    return EXAMPLE_OPTIONS.laptop
-  if (t.includes('city') || t.includes('move') || t.includes('relocat'))
-    return EXAMPLE_OPTIONS.city
-  if (t.includes('job') || t.includes('offer') || t.includes('career'))
-    return EXAMPLE_OPTIONS.job
-  if (t.includes('phone') || t.includes('mobile'))
-    return EXAMPLE_OPTIONS.phone
-  return EXAMPLE_OPTIONS.default
+function getDecisionType(title: string) {
+  const t = (title ?? '').toLowerCase()
+  return DECISION_TYPES.find((type) => type.keywords.some((kw) => t.includes(kw))) ?? DEFAULT_TYPE
 }
+
 
 export default function OptionsPage() {
   const { id } = useParams<{ id: string }>()
@@ -52,9 +124,8 @@ export default function OptionsPage() {
     setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
 
-  const suggestions = getSuggestions(decisionTitle ?? '')
+  const { suggestions, placeholder } = getDecisionType(decisionTitle ?? '')
 
-  // Add one option to local list (not yet saved to backend)
   const handleAdd = () => {
     const name = inputValue.trim()
     if (!name) return
@@ -82,7 +153,6 @@ export default function OptionsPage() {
     setOptions((prev) => [...prev, { id: crypto.randomUUID(), name: s }])
   }
 
-  // Save all options to backend, then navigate to score page
   const handleContinue = async () => {
     if (options.length < 2) {
       setError('Please add at least 2 options to compare.')
@@ -91,7 +161,6 @@ export default function OptionsPage() {
     setSavingAll(true)
     setError('')
     try {
-      console.log(`[options page] saving ${options.length} options in one batch`)
       const saved: Option[] = await saveOptions(id, options.map((o) => o.name))
       storeSetOptions(saved)
       router.push(`/decision/${id}/score`)
@@ -104,62 +173,56 @@ export default function OptionsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-xl mx-auto">
+    <main className="p-6 max-w-xl mx-auto">
+      <div className="card p-8">
 
         {/* Header */}
-        <div className="mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">
-            Step 3 of 4
-          </p>
-          <h1 className="text-xl font-bold text-gray-900">Add Your Options</h1>
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-widest text-[var(--text-3)] mb-1">STEP 3 • OPTIONS</p>
+          <h1 className="text-3xl font-semibold tracking-tight">What are your choices?</h1>
           {decisionTitle && (
-            <p className="text-sm text-gray-500 mt-0.5">For: {decisionTitle}</p>
+            <p className="text-[var(--text-2)] mt-2">For: {decisionTitle}</p>
           )}
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-6">
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full w-3/4 transition-all" />
+        {/* Progress */}
+        <div className="mb-8">
+          <div className="h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden">
+            <div className="h-full bg-[var(--accent)] rounded-full w-3/4 transition-all" />
           </div>
         </div>
 
-        {/* Input Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
+        {/* Add Option Card */}
+        <div className="card p-6 mb-8 bg-[var(--surface-2)]">
 
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            What are you choosing between?
+          <label className="block text-sm font-medium text-[var(--text-2)] mb-3">
+            Add an option
           </label>
 
-          {/* Main input row */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <input
               ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => { setInputValue(e.target.value); setError('') }}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder="e.g. MacBook Air M3"
-              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300
-                         text-gray-900 placeholder:text-gray-400 bg-white text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder={placeholder}
+              className="flex-1 px-5 py-3.5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl 
+                         text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:border-[var(--accent)] outline-none"
             />
             <button
               onClick={handleAdd}
               disabled={!inputValue.trim()}
-              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm
-                         hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed
-                         transition-colors"
+              className="btn-primary px-8 rounded-2xl whitespace-nowrap disabled:opacity-50"
             >
               + Add
             </button>
           </div>
 
-          {/* Optional description toggle */}
+          {/* Description toggle */}
           <button
             onClick={() => setShowDesc((v) => !v)}
-            className="text-xs text-gray-400 hover:text-blue-500 mt-2 transition-colors"
+            className="text-xs text-[var(--text-3)] hover:text-[var(--accent)] mt-3 transition-colors"
           >
             {showDesc ? '− Hide description' : '+ Add description (optional)'}
           </button>
@@ -170,22 +233,19 @@ export default function OptionsPage() {
               onChange={(e) => setInputDesc(e.target.value)}
               placeholder="Short note about this option..."
               rows={2}
-              className="w-full mt-2 px-3 py-2 rounded-lg border border-gray-300
-                         text-gray-900 placeholder:text-gray-400 bg-white text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full mt-3 px-5 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl 
+                         text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:border-[var(--accent)] outline-none resize-none"
             />
           )}
 
-          {error && (
-            <p className="text-red-500 text-xs mt-2">{error}</p>
-          )}
+          {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
         </div>
 
         {/* Suggestions */}
-        {options.length < 4 && (
-          <div className="mb-4">
-            <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-              Quick add suggestions
+        {options.length < 4 && suggestions.length > 0 && (
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-widest text-[var(--text-3)] mb-3">
+              Quick suggestions
             </p>
             <div className="flex flex-wrap gap-2">
               {suggestions
@@ -194,9 +254,8 @@ export default function OptionsPage() {
                   <button
                     key={s}
                     onClick={() => handleSuggestion(s)}
-                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-full
-                               text-gray-600 hover:border-blue-400 hover:text-blue-600
-                               hover:bg-blue-50 transition-colors bg-white"
+                    className="text-sm border border-[var(--border)] hover:border-[var(--accent)] 
+                               hover:text-[var(--accent)] px-4 py-2 rounded-2xl transition-colors"
                   >
                     + {s}
                   </button>
@@ -205,37 +264,33 @@ export default function OptionsPage() {
           </div>
         )}
 
-        {/* Options list */}
+        {/* Added Options */}
         {options.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">
-              Your options ({options.length})
+          <div className="card p-6 mb-8 bg-[var(--surface-2)]">
+            <p className="text-xs uppercase tracking-widest text-[var(--text-3)] mb-4">
+              YOUR OPTIONS ({options.length})
             </p>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {options.map((opt, i) => (
                 <li
                   key={opt.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 group"
+                  className="flex items-start gap-4 p-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] group"
                 >
-                  {/* Number badge */}
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700
-                                   text-xs font-bold flex items-center justify-center mt-0.5">
+                  <span className="flex-shrink-0 w-7 h-7 rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)] 
+                                   text-sm font-bold flex items-center justify-center mt-0.5">
                     {i + 1}
                   </span>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{opt.name}</p>
+                    <p className="font-medium text-[var(--text-1)] truncate">{opt.name}</p>
                     {opt.description && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">{opt.description}</p>
+                      <p className="text-[var(--text-3)] text-sm mt-1 truncate">{opt.description}</p>
                     )}
                   </div>
 
-                  {/* Remove button */}
                   <button
                     onClick={() => handleRemove(opt.id)}
-                    className="text-gray-300 hover:text-red-400 transition-colors text-lg
-                               leading-none opacity-0 group-hover:opacity-100 flex-shrink-0"
+                    className="text-xl leading-none text-[var(--text-3)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                     title="Remove"
                   >
                     ×
@@ -246,20 +301,15 @@ export default function OptionsPage() {
           </div>
         )}
 
-        {/* Min options hint */}
         {options.length === 1 && (
-          <p className="text-xs text-amber-500 text-center mb-4">
-            Add at least one more option to continue
-          </p>
+          <p className="text-amber-400 text-center text-sm mb-4">Add at least one more option to continue</p>
         )}
 
-        {/* Continue button */}
+        {/* Continue Button */}
         <button
           onClick={handleContinue}
           disabled={options.length < 2 || savingAll}
-          className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm
-                     hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed
-                     transition-colors"
+          className="w-full btn-primary py-4 rounded-2xl text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {savingAll ? (
             <span className="flex items-center justify-center gap-2">
@@ -271,14 +321,12 @@ export default function OptionsPage() {
           )}
         </button>
 
-        {/* Back link */}
         <button
           onClick={() => router.push(`/decision/${id}/compare`)}
-          className="w-full mt-3 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          className="w-full mt-4 py-3 text-sm text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors"
         >
           ← Back to comparisons
         </button>
-
       </div>
     </main>
   )
